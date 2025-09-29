@@ -1,0 +1,27 @@
+fastapi[all]==0.115.0
+uvicorn[standard]==0.30.6
+elasticsearch>=9.0.0,<10.0.0
+redis>=5.0.0
+rq>=1.16.2
+boto3==1.34.162
+python-multipart==0.0.9
+Pillow>=10.4.0
+exifread>=3.0.0
+astral>=3.2
+gpxpy>=1.6.2
+fastkml>=0.12
+shapely>=2.0.4
+
+# --- OpenTelemetry core & exporters ---
+elastic-opentelemetry>=1.0.0
+
+# --- Auto-instrumentation core & common integrations ---
+opentelemetry-instrumentation==0.58b0
+opentelemetry-instrumentation-asgi==0.58b0
+opentelemetry-instrumentation-fastapi==0.58b0
+opentelemetry-instrumentation-requests==0.58b0
+# Optional but useful:
+opentelemetry-instrumentation-redis==0.58b0
+opentelemetry-instrumentation-httpx==0.58b0
+opentelemetry-instrumentation-logging==0.58b0
+opentelemetry-instrumentation-system-metrics==0.58b0

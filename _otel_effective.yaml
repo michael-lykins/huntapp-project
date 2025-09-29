@@ -1,0 +1,38 @@
+receivers:
+  otlp:
+    protocols:
+      http: {}
+      grpc: {}
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 80
+  batch: {}
+  resource:
+    attributes:
+      - key: deployment.environment
+        action: upsert
+        value: local
+      - key: service.namespace
+        action: upsert
+        value: huntapp
+
+exporters:
+  logging:
+    loglevel: debug
+  otlphttp/elastic:
+    endpoint: ${env:ELASTIC_OTEL_OTLP_ENDPOINT}
+    headers:
+      Authorization: ${env:ELASTIC_OTEL_OTLP_AUTH}  # must be:  ApiKey <base64>
+    timeout: 30s
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    traces:  { receivers: [otlp], processors: [resource, memory_limiter, batch], exporters: [logging, otlphttp/elastic] }
+    metrics: { receivers: [otlp], processors: [resource, memory_limiter, batch], exporters: [logging, otlphttp/elastic] }
+    logs:    { receivers: [otlp], processors: [resource, memory_limiter, batch], exporters: [logging, otlphttp/elastic] }

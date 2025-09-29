@@ -1,0 +1,48 @@
+receivers:
+  otlp:
+    protocols:
+      grpc: {}
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins: ["http://localhost:3000","http://localhost:3001"]
+          allowed_headers: ["*"]
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 400
+    spike_limit_mib: 80
+  batch: {}
+  resource:
+    attributes:
+      - action: upsert
+        key: service.name
+        value: huntapp-collector
+      - action: upsert
+        key: deployment.environment
+        value: dev
+
+exporters:
+  otlphttp/elastic:
+    endpoint: ${env:ELASTIC_OTEL_OTLP_ENDPOINT}
+    headers:
+      Authorization: ${env:ELASTIC_OTEL_OTLP_AUTH}
+
+service:
+  telemetry:
+    metrics:
+      address: :8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/elastic]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/elastic]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, batch]
+      exporters: [otlphttp/elastic]

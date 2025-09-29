@@ -1,0 +1,16 @@
+# Don’t send secrets or bulky stuff into Docker context
+.git
+.gitignore
+.env
+.env.local
+**/.env
+**/.env.local
+**/__pycache__/
+**/*.pyc
+node_modules
+web/.next
+web/.turbo
+web/.vercel
+coverage
+dist
+build
