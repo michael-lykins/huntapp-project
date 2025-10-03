@@ -3,7 +3,9 @@ from typing import Optional, Tuple
 from datetime import datetime
 from opentelemetry import trace
 from app.services import get_search
+from app.services import get_blob
 
+blob = get_blob()
 router = APIRouter(prefix="/images", tags=["images"])
 tracer = trace.get_tracer(__name__)
 
