@@ -1,39 +1,48 @@
+# backend/app/routes/images.py
 from fastapi import APIRouter, Query
-from typing import Optional, Tuple
+from typing import Optional
 from datetime import datetime
 from opentelemetry import trace
-from app.services import get_search
-from app.services import get_blob
 
-blob = get_blob()
+from app.services import get_search
+
 router = APIRouter(prefix="/images", tags=["images"])
 tracer = trace.get_tracer(__name__)
 
-def _parse_bbox(bbox: Optional[str]) -> Optional[Tuple[float, float, float, float]]:
-    if not bbox:
-        return None
-    try:
-        a, b, c, d = [float(x.strip()) for x in bbox.split(",")]
-        return (a, b, c, d)
-    except Exception:
-        return None
 
 @router.get("/search")
 def search_images(
-    q: Optional[str] = Query(None, description="Free text"),
-    start: Optional[datetime] = Query(None),
-    end: Optional[datetime] = Query(None),
-    bbox: Optional[str] = Query(None, description="minLon,minLat,maxLon,maxLat"),
+    q: Optional[str] = Query(None, description="free text"),
+    start: Optional[datetime] = Query(None, description="ISO start"),
+    end: Optional[datetime] = Query(None, description="ISO end"),
+    bbox: Optional[str] = Query(
+        None,
+        description="minLon,minLat,maxLon,maxLat (e.g. -122.6,37.6,-122.2,37.9)"
+    ),
     size: int = Query(50, ge=1, le=500),
 ):
-    s = get_search()
-    bbox_t = _parse_bbox(bbox)
+    """
+    Vendor-agnostic search across trailcam images.
+    Delegates to Search adapter (Elastic implementation stays in services/search_elastic.py).
+    """
     with tracer.start_as_current_span("images.search"):
-        items = s.query_images(
+        search = get_search()
+
+        # normalize bbox if present
+        parsed_bbox = None
+        if bbox:
+            try:
+                min_lon, min_lat, max_lon, max_lat = [float(x.strip()) for x in bbox.split(",")]
+                parsed_bbox = (min_lon, min_lat, max_lon, max_lat)
+            except Exception:
+                # silently ignore bad bbox; you can 422 if you prefer
+                parsed_bbox = None
+
+        result = search.query_images(
             q=q,
             start=start.isoformat() if start else None,
             end=end.isoformat() if end else None,
-            bbox=bbox_t,
+            bbox=parsed_bbox,
             size=size,
         )
-    return {"count": len(items), "items": items}
+        return result

@@ -127,15 +127,22 @@ services:
     container_name: hunt_minio_init
     depends_on:
       - minio
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: ["/bin/sh", "-lc"]
     command: |
       set -e
-      echo "Waiting for MinIO..."
-      until mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+      echo "Waiting for MinIO to be ready..."
+      until mc alias set local http://minio:9000 "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null 2>&1; do
         sleep 2
       done
+      echo "Creating bucket if missing..."
       mc mb --ignore-existing local/trailcam-images
+      echo "Setting public download policy..."
       mc anonymous set download local/trailcam-images
+      echo "Bucket ready."
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+
 
 volumes:
   minio-data:
