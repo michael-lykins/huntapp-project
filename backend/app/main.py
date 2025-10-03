@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import upload, geo
+from app.routes.upload import router as upload_router
+from app.routes.geo import router as geo_router
+from app.routes.images import router as images_router
+from app.routes.events import router as events_router
 from app.observability import setup_logging
 import os
 
@@ -17,8 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(upload.router)
-app.include_router(geo.router)
+app.include_router(upload_router)
+app.include_router(geo_router)
+app.include_router(images_router)
+app.include_router(events_router)
 
 @app.get("/health")
 def health():

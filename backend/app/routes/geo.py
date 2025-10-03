@@ -1,20 +1,30 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from typing import Dict
-from app.services.gpx_kml_ingest import ingest_gpx_bytes, ingest_kml_bytes
+from fastapi import APIRouter
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+from app.services import get_search
 
-router = APIRouter()
+router = APIRouter(prefix="/geo", tags=["geo"])
 
-@router.post("/upload/geo")
-async def upload_geo(file: UploadFile = File(...)) -> Dict:
-    name = (file.filename or "").lower()
-    data = await file.read()
-    try:
-        if name.endswith(".gpx") or b"<gpx" in data[:200].lower():
-            counts = ingest_gpx_bytes(data)
-        elif name.endswith(".kml") or b"<kml" in data[:200].lower():
-            counts = ingest_kml_bytes(data)
-        else:
-            raise ValueError(f"Unsupported file type: {name}")
-        return {"ok": True, "counts": counts}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+class PinIn(BaseModel):
+    timestamp: Optional[datetime] = Field(default=None, description="Defaults to now() if omitted")
+    event_type: str = Field(default="pin")
+    lat: float
+    lon: float
+    note: Optional[str] = None
+    species: Optional[str] = None
+    spot_id: Optional[str] = None
+
+@router.post("/pin")
+def create_pin(pin: PinIn):
+    doc = {
+        "@timestamp": (pin.timestamp or datetime.utcnow()).isoformat() + "Z",
+        "event_type": pin.event_type,
+        "lat": pin.lat,
+        "lon": pin.lon,
+        "note": pin.note,
+        "species": pin.species,
+        "spot_id": pin.spot_id,
+    }
+    res = get_search().index_event_pin(doc)
+    return {"ok": True, "id": res.get("_id")}

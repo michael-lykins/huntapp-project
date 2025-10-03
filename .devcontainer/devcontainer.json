@@ -1,0 +1,37 @@
+{
+  "name": "HuntApp (api dev)",
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "../docker-compose.dev.yml"
+  ],
+  "service": "api",
+
+  // Open the repo root inside the container where we will mount it
+  "workspaceFolder": "/workspaces/huntapp-project",
+
+  "overrideCommand": true,
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.typeCheckingMode": "basic",
+        "python.analysis.autoImportCompletions": true
+      }
+    }
+  },
+
+  "postCreateCommand": "python - <<'PY'\nimport sys,site,os\nprint('Python:', sys.version)\nprint('CWD   :', os.getcwd())\nprint('Site  :', site.getsitepackages())\nPY",
+  "remoteUser": "root"
+}

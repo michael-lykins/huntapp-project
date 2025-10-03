@@ -1,0 +1,11 @@
+services:
+  api:
+    # Mount the *repo root* to the workspace path Dev Containers will open
+    volumes:
+      - ./:/workspaces/huntapp-project:cached
+
+      # Also mount backend to /app so your existing paths & commands still work
+      - ./backend:/app:cached
+
+    # Keep the container alive; you'll run uvicorn yourself
+    command: ["bash", "-lc", "sleep infinity"]

@@ -1,60 +1,76 @@
-# backend/app/observability.py
-import json, logging, os, time
-from typing import Dict
-from opentelemetry import trace, metrics
-from opentelemetry.trace import get_tracer
-from opentelemetry.sdk.resources import Resource
+import logging
+import os
+from typing import Optional, Mapping
 
-# ---- JSON logging with trace/span correlation --------------------------------
-class OTELJSONFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        span = trace.get_current_span()
-        sc = span.get_span_context() if span else None
+try:
+    # Logging correlation
+    from opentelemetry.instrumentation.logging import LoggingInstrumentor
+except Exception:  # pragma: no cover
+    LoggingInstrumentor = None  # type: ignore
 
-        def hex_id(v: int, width: int) -> str | None:
-            return f"{v:0{width}x}" if v and v != 0 else None
+try:
+    from opentelemetry import metrics
+except Exception:  # pragma: no cover
+    metrics = None  # type: ignore
 
-        payload: Dict[str, object] = {
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "trace_id": hex_id(sc.trace_id, 32) if sc else None,
-            "span_id": hex_id(sc.span_id, 16) if sc else None,
-            "service.name": os.getenv("OTEL_SERVICE_NAME", None),
-            "deployment.environment": os.getenv("DEPLOY_ENV", None),
-            "ts": int(record.created * 1000),
-        }
-        if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
-        return json.dumps({k: v for k, v in payload.items() if v is not None})
+_metrics_initialized = False
+_queue_hist = None
 
-def setup_logging():
-    root = logging.getLogger()
-    root.setLevel(logging.INFO)
-    # remove uvicorn’s default handlers so we don’t double-log
-    for h in list(root.handlers):
-        root.removeHandler(h)
-    h = logging.StreamHandler()
-    h.setFormatter(OTELJSONFormatter())
-    root.addHandler(h)
-    # quiet noisy libs a bit
-    logging.getLogger("botocore").setLevel(logging.WARNING)
-    logging.getLogger("boto3").setLevel(logging.WARNING)
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+def setup_logging(level: Optional[str] = None) -> None:
+    """Configure Python logging and (optionally) OpenTelemetry log correlation.
 
-# ---- Custom metrics (RED-style for uploads) -----------------------------------
-METER = metrics.get_meter("huntapp.observability", "0.1.0")
-UPLOADS_TOTAL = METER.create_counter("uploads_total", description="Count of upload requests")
-UPLOAD_DURATION_MS = METER.create_histogram("upload_duration_ms", unit="ms",
-                                            description="Upload end-to-end latency")
-QUEUE_DEPTH = METER.create_up_down_counter("ingest_queue_depth", description="RQ ingest queue depth")
+    This is safe to call multiple times.
+    """
+    lvl = (level or os.getenv("LOG_LEVEL") or "INFO").upper()
+    try:
+        logging.getLogger().setLevel(lvl)
+    except Exception:
+        pass
 
-def record_upload(kind: str, success: bool, duration_ms: float):
-    attrs = {"kind": kind, "success": success}
-    UPLOADS_TOTAL.add(1, attributes=attrs)
-    UPLOAD_DURATION_MS.record(float(duration_ms), attributes=attrs)
+    if LoggingInstrumentor is not None:
+        try:
+            LoggingInstrumentor().instrument(set_logging_format=True)
+        except Exception:
+            # Best-effort; don't crash the app if OTEL libs are missing at build time
+            pass
 
-def record_queue_depth(depth: int):
-    # set by adding the delta from last; for simplicity, add absolute as delta from 0
-    # (call with depth, then immediately call with -depth when you finish measuring, or just call occasionally)
-    QUEUE_DEPTH.add(depth)
+    logging.basicConfig(
+        level=lvl,
+        format=(
+            "%(asctime)s %(levelname)s "
+            "[trace_id=%(otelTraceID)s span_id=%(otelSpanID)s "
+            "resource.service.name=%(otelServiceName)s trace_sampled=%(otelTraceSampled)s] "
+            "- %(name)s: %(message)s"
+        ),
+    )
+
+def _init_metrics() -> None:
+    global _metrics_initialized, _queue_hist
+    if _metrics_initialized or metrics is None:
+        _metrics_initialized = True
+        return
+    try:
+        meter = metrics.get_meter("huntapp.observability")
+        _queue_hist = meter.create_histogram(
+            name="huntapp.queue.depth",
+            description="Approximate depth of the RQ ingest queue",
+            unit="{jobs}",
+        )
+    except Exception:
+        _queue_hist = None
+    _metrics_initialized = True
+
+def record_queue_depth(depth: int, attributes: Optional[Mapping[str, str]] = None) -> None:
+    """Record a queue depth sample (exported via OTEL metrics).
+
+    We intentionally use a histogram so we can see distribution over time without needing stateful callbacks.
+    """
+    if not _metrics_initialized:
+        _init_metrics()
+    if _queue_hist is None:
+        return
+    try:
+        _queue_hist.record(int(depth), attributes or {"queue": "ingest"})
+    except Exception:
+        # Don't break app flow on metrics errors
+        pass
