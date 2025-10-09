@@ -1,0 +1,30 @@
+{
+  "index_patterns": ["metrics-weather-*"],
+  "data_stream": {},
+  "priority": 500,
+  "template": {
+    "mappings": {
+      "properties": {
+        "@timestamp":   { "type": "date" },
+        "spot_id":      { "type": "keyword" },
+        "lat":          { "type": "float" },
+        "lon":          { "type": "float" },
+        "location":     { "type": "geo_point" },
+        "timezone":     { "type": "keyword" },
+        "temp_f":       { "type": "half_float" },
+        "wind_mph":     { "type": "half_float" },
+        "wind_dir_deg": { "type": "half_float" },
+        "precip_mm":    { "type": "half_float" },
+        "humidity":     { "type": "half_float" },
+        "cloud":        { "type": "half_float" },
+        "source":       { "type": "keyword" }
+      }
+    },
+    "lifecycle": {
+      "data_retention": "30d"
+    }
+  },
+  "_meta": {
+    "description": "HuntApp weather (Serverless) data stream template"
+  }
+}

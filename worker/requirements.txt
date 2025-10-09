@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+elasticsearch
+elastic-opentelemetry
+boto3
+redis>=5.0,<6.0

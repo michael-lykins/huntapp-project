@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+elasticsearch
+elastic-opentelemetry
+boto3

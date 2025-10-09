@@ -1,0 +1,16 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+
+// Name this constant MapClientView to avoid any naming collisions
+const MapClientView = dynamic(
+  () => import('./MapClient').then(m => m.default),
+  {
+    ssr: false,
+    loading: () => <div className="p-4">Loading map…</div>,
+  }
+);
+
+export default function Page() {
+  return <MapClientView />;
+}

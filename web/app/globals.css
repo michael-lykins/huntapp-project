@@ -1,0 +1,53 @@
+/* web/app/globals.css */
+:root {
+  --card-bg: #ffffff;
+  --card-fg: #111827;
+  --muted: #6b7280;
+  --shadow: 0 10px 30px rgba(0,0,0,.12);
+  --radius: 12px;
+}
+
+.hud {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  z-index: 9999;
+  background: rgba(17, 24, 39, 0.85); /* near-black */
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  letter-spacing: .2px;
+}
+
+.card {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 9999;
+  background: var(--card-bg);
+  color: var(--card-fg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  min-width: 160px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.card .title {
+  font-weight: 600;
+  font-size: 14px;
+  margin: 0 0 4px 0;
+}
+
+.card .value {
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0;
+}
+
+.card .subtle {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
