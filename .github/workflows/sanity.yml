@@ -1,0 +1,11 @@
+name: sanity
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  echo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "hello from actions"
