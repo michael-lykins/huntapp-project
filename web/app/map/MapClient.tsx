@@ -37,7 +37,16 @@ export default function MapClient() {
         )}
       </Map>
 
-      <PinFormModal lat={selected?.lat} lon={selected?.lon} />
+      <PinFormModal
+        visible={!!selected}
+        lat={selected?.lat}
+        lon={selected?.lon}
+        onClose={() => setSelected(null)}
+        onSave={() => {
+          // TODO: call your API to create the pin, then close
+          setSelected(null);
+        }}
+      />
     </>
   );
 }
