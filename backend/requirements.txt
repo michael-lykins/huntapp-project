@@ -1,5 +1,13 @@
 fastapi
 uvicorn
-elasticsearch
 elastic-opentelemetry
 boto3
+python-multipart          # FastAPI file uploads
+Pillow
+exifread                  # or 'piexif', either works
+numpy
+opencv-python-headless
+torch                     # cpu ok; big, but works
+open-clip-torch           # CLIP embeddings
+orjson
+rq                        # job queue

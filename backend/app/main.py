@@ -3,14 +3,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import events
+from app.api import events, images
 from lib.search.events_bootstrap import bootstrap_events, EVENTS_DATA_STREAM
 from lib.models.event import Event
 from lib.services.search import get_elasticsearch_client
 
 import os
 
-app = FastAPI()
+app = FastAPI(title="HuntApp API", version="1.2")
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +22,7 @@ app.add_middleware(
 
 # Mount event routes under /api/events
 app.include_router(events.router, prefix="/api")
+app.include_router(images.router, prefix="/api")
 
 es = get_elasticsearch_client(
     host=os.environ["ELASTIC_SEARCH_HOST"],

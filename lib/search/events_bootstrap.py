@@ -1,13 +1,11 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Final, Optional, Any
 from elasticsearch import Elasticsearch
 
-EVENTS_DATA_STREAM = "events"
+EVENTS_DATA_STREAM: Final = "events"
 
-def bootstrap_events(es: Optional[Elasticsearch] = None) -> None:
+def bootstrap_events(es_client: Any) -> None:
     # TODO: add index template / data stream creation if you want
-    return
+    pass
 
-def events_bootstrap(es: Optional[Elasticsearch] = None, redis=None) -> None:
-    # TODO: worker-side processing
-    return
+

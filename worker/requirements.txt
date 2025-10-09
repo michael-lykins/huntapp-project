@@ -4,3 +4,12 @@ elasticsearch
 elastic-opentelemetry
 boto3
 redis>=5.0,<6.0
+python-multipart          # FastAPI file uploads
+Pillow
+exifread                  # or 'piexif', either works
+numpy
+opencv-python-headless
+torch                     # cpu ok; big, but works
+open-clip-torch           # CLIP embeddings
+orjson
+rq                        # job queue

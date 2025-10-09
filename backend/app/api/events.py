@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from lib.models.event import Event
 from lib.services.elastic_client import get_elasticsearch_client
-from lib.search.events_bootstrap import EVENTS_DATA_STREAM
+from lib.search.events_bootstrap import bootstrap_events, EVENTS_DATA_STREAM
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
