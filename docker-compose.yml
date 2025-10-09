@@ -28,7 +28,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"   # <— plaintext gRPC to local Collector
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=huntapp
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.2,service.namespace=huntapp
       OTEL_SERVICE_NAME: huntapp-api
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
