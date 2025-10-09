@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+elasticsearch
 elastic-opentelemetry
 boto3
 python-multipart          # FastAPI file uploads
