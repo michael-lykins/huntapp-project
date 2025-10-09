@@ -14,7 +14,7 @@ services:
     env_file:
       - ./backend/.env.api
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request as u; u.urlopen('http://localhost:8000/docs').read()\""]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
       interval: 5s
       timeout: 3s
       retries: 10
