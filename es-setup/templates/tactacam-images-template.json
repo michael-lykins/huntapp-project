@@ -1,10 +1,6 @@
 {
   "index_patterns": ["tactacam-images*"],
   "template": {
-    "settings": {
-      "number_of_shards": 1,
-      "number_of_replicas": 1
-    },
     "mappings": {
       "properties": {
         "@timestamp":   { "type": "date" },
@@ -29,17 +25,24 @@
             "wind_gust":         { "type": "float" },
             "pressure_hpa":      { "type": "float" },
             "pressure_tendency": { "type": "keyword" },
-            "moon_phase":        { "type": "float" },
+            "moon_phase":        { "type": "keyword" },
             "sun_phase":         { "type": "keyword" },
             "label":             { "type": "keyword" },
             "temp_departure_24h":{ "type": "float" }
           }
         },
-        "ai_species":   { "type": "keyword" },
-        "ai_sex":       { "type": "keyword" },
-        "ai_age_class": { "type": "keyword" },
-        "ai_labels":    { "type": "keyword" },
-        "animal_id":    { "type": "keyword" }
+        "ai_analyzed":    { "type": "boolean" },
+        "ai_analyzed_at": { "type": "date" },
+        "ai_has_animal":  { "type": "boolean" },
+        "ai_species":     { "type": "keyword" },
+        "ai_sex":         { "type": "keyword" },
+        "ai_age_class":   { "type": "keyword" },
+        "ai_antlers":     { "type": "text" },
+        "ai_labels":      { "type": "keyword" },
+        "ai_confidence":  { "type": "float" },
+        "ai_notes":       { "type": "text" },
+        "ai_error":       { "type": "keyword" },
+        "animal_id":      { "type": "keyword" }
       }
     }
   },

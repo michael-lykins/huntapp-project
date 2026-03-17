@@ -18,6 +18,7 @@ from fastapi import FastAPI
 import uvicorn
 
 from .syncer import run_sync
+from .analyzer import run_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +35,25 @@ def health():
 
 @app.post("/trigger")
 def trigger(camera_ids: list[str] | None = None):
-    """Fire an immediate sync outside the scheduled window."""
+    """Fire an immediate sync + AI analysis outside the scheduled window."""
     logger.info("Manual trigger received, camera_ids=%s", camera_ids)
-    results = run_sync(camera_ids=camera_ids)
-    return {"synced": results}
+    synced = run_sync(camera_ids=camera_ids)
+    ai_stats = run_analysis()
+    return {"synced": synced, "ai": ai_stats}
+
+
+@app.post("/analyze")
+def analyze():
+    """Run a standalone AI analysis pass (no sync)."""
+    stats = run_analysis()
+    return {"ai": stats}
 
 
 def _scheduled_sync():
     logger.info("Scheduled sync started")
     try:
         run_sync()
+        run_analysis()
     except Exception as exc:
         logger.error("Scheduled sync failed: %s", exc, exc_info=True)
 
