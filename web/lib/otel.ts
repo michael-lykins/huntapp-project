@@ -1,25 +1,21 @@
 /**
  * Browser-side OpenTelemetry initialization.
- *
- * Uses require() inside the function body to avoid Next.js/Webpack ESM→CJS
- * interop issues. Uses the v2 @opentelemetry/resources API (resourceFromAttributes
- * instead of the removed Resource class constructor).
+ * OTel packages are listed in transpilePackages in next.config.mjs so that
+ * Next.js/Webpack handles their ESM↔CJS interop correctly.
  */
+
+import { WebTracerProvider, BatchSpanProcessor } from '@opentelemetry/sdk-trace-web';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { resourceFromAttributes, defaultResource } from '@opentelemetry/resources';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
 
 let initialized = false;
 
 export function initOtel() {
   if (initialized || typeof window === 'undefined') return;
   initialized = true;
-
-  /* eslint-disable @typescript-eslint/no-var-requires */
-  const { WebTracerProvider, BatchSpanProcessor } = require('@opentelemetry/sdk-trace-web');
-  const { OTLPTraceExporter } = require('@opentelemetry/exporter-trace-otlp-http');
-  const { resourceFromAttributes, defaultResource } = require('@opentelemetry/resources');
-  const { registerInstrumentations } = require('@opentelemetry/instrumentation');
-  const { FetchInstrumentation } = require('@opentelemetry/instrumentation-fetch');
-  const { DocumentLoadInstrumentation } = require('@opentelemetry/instrumentation-document-load');
-  /* eslint-enable @typescript-eslint/no-var-requires */
 
   const resource = defaultResource().merge(resourceFromAttributes({
     'service.name': 'ridgeline-web',
