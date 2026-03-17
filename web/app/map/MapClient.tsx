@@ -88,7 +88,7 @@ export default function MapClient() {
         data: { type: 'FeatureCollection', features: [] },
         promoteId: 'id',
         generateId: true,
-      } as mapboxgl.GeoJSONSourceRaw);
+      });
     }
     if (!m.getLayer('wpt-circles')) {
       m.addLayer({
