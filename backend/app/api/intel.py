@@ -176,6 +176,7 @@ class AskResponse(BaseModel):
     esql_query: str
     row_count: int
     images: list[dict] = []
+    image_source: str = "elser"  # "esql" | "elser"
     error: Optional[str] = None
     tokens_in: Optional[int] = None
     tokens_out: Optional[int] = None
@@ -286,13 +287,19 @@ Give a concise, actionable hunting answer based on this data."""
 
     # Use ES|QL images if the query returned individual records with images;
     # otherwise fall back to ELSER semantic search results.
-    images = esql_images[:6] if esql_images else semantic_images
+    if esql_images:
+        images = esql_images[:6]
+        image_source = "esql"
+    else:
+        images = semantic_images
+        image_source = "elser"
 
     return AskResponse(
         answer=answer,
         esql_query=esql_query,
         row_count=len(records),
         images=images,
+        image_source=image_source,
         error=esql_error,
         tokens_in=total_in,
         tokens_out=total_out,

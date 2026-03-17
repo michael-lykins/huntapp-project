@@ -418,6 +418,7 @@ interface IntelMessage {
   tokens_in?: number;
   tokens_out?: number;
   images?: IntelImage[];
+  image_source?: 'esql' | 'elser';
 }
 
 const STARTER_QUESTIONS = [
@@ -462,6 +463,7 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
         tokens_in: data.tokens_in,
         tokens_out: data.tokens_out,
         images: data.images ?? [],
+        image_source: data.image_source ?? 'elser',
       }]);
     } catch (err: any) {
       setMessages(prev => [...prev, { role: 'assistant', text: `Error: ${err.message}` }]);
@@ -566,7 +568,7 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
                 {msg.role === 'assistant' && msg.images && msg.images.length > 0 && (
                   <div style={{ marginTop: 8, width: '100%' }}>
                     <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 4 }}>
-                      📷 {msg.images.length} relevant images · Elastic ELSER
+                      📷 {msg.images.length} relevant images · {msg.image_source === 'esql' ? 'ES|QL' : 'Elastic ELSER'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
                       {msg.images.map(img => (
