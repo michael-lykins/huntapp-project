@@ -1,0 +1,24 @@
+{
+  "index_patterns": ["tactacam-cameras*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "camera_id":             { "type": "keyword" },
+        "name":                  { "type": "keyword" },
+        "model":                 { "type": "keyword" },
+        "property_id":           { "type": "keyword" },
+        "property_name":         { "type": "keyword" },
+        "location":              { "type": "geo_point" },
+        "last_transmission_ts":  { "type": "date" },
+        "last_sync_ts":          { "type": "date" },
+        "battery_level":         { "type": "keyword" },
+        "signal_strength":       { "type": "integer" }
+      }
+    }
+  },
+  "_meta": { "description": "Tactacam camera registry" }
+}

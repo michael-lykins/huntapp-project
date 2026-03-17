@@ -203,5 +203,82 @@ services:
       OTEL_LOG_LEVEL: debug
       OTEL_TRACES_SAMPLER: parentbased_always_on
 
+  # ---- Sync service: 15-min smart poller + /trigger endpoint ----
+  sync:
+    build:
+      context: .
+      dockerfile: ./sync/Dockerfile
+    container_name: sync
+    command: ["opentelemetry-instrument", "python", "-m", "sync.poller"]
+    ports:
+      - "8100:8100"
+    env_file:
+      - .env
+    environment:
+      # ---- Tactacam credentials ----
+      TACTACAM_USERNAME: ${TACTACAM_USERNAME}
+      TACTACAM_PASSWORD: ${TACTACAM_PASSWORD}
+      POLL_INTERVAL_MINUTES: ${POLL_INTERVAL_MINUTES:-15}
+      SYNC_PORT: "8100"
+      POLLER_URL: http://sync:8100
+
+      # ---- Storage ----
+      ELASTIC_SEARCH_HOST: ${ELASTIC_SEARCH_HOST}
+      ELASTIC_SEARCH_API_KEY: ${ELASTIC_SEARCH_API_KEY}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: trailcam-images
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_REGION: us-east-1
+
+      # ---- OpenTelemetry ----
+      OTEL_SERVICE_NAME: huntapp-sync
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=huntapp
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+    depends_on:
+      minio:
+        condition: service_healthy
+      otel:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---- Email trigger: inbound webhook → immediate sync ----
+  email-trigger:
+    build:
+      context: .
+      dockerfile: ./sync/Dockerfile
+    container_name: email-trigger
+    command: ["opentelemetry-instrument", "python", "-m", "sync.email_trigger"]
+    ports:
+      - "8101:8101"
+    env_file:
+      - .env
+    environment:
+      POLLER_URL: http://sync:8100
+      EMAIL_TRIGGER_PORT: "8101"
+
+      # ---- OpenTelemetry ----
+      OTEL_SERVICE_NAME: huntapp-email-trigger
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=huntapp
+      OTEL_PYTHON_LOG_CORRELATION: "true"
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+    depends_on:
+      - sync
+      - otel
+    restart: unless-stopped
+
 volumes:
   minio-data:

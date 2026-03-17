@@ -1,0 +1,47 @@
+{
+  "index_patterns": ["tactacam-images*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp":   { "type": "date" },
+        "ingest_ts":    { "type": "date" },
+        "camera_id":    { "type": "keyword" },
+        "camera_name":  { "type": "keyword" },
+        "property_id":  { "type": "keyword" },
+        "filename":     { "type": "keyword" },
+        "s3_key":       { "type": "keyword" },
+        "location":     { "type": "geo_point" },
+        "has_headshot": { "type": "boolean" },
+        "signal":       { "type": "keyword" },
+        "battery":      { "type": "keyword" },
+        "weather": {
+          "properties": {
+            "temperature":       { "type": "float" },
+            "temp_max_12h":      { "type": "float" },
+            "temp_min_12h":      { "type": "float" },
+            "wind_speed":        { "type": "float" },
+            "wind_deg":          { "type": "float" },
+            "wind_cardinal":     { "type": "keyword" },
+            "wind_gust":         { "type": "float" },
+            "pressure_hpa":      { "type": "float" },
+            "pressure_tendency": { "type": "keyword" },
+            "moon_phase":        { "type": "float" },
+            "sun_phase":         { "type": "keyword" },
+            "label":             { "type": "keyword" },
+            "temp_departure_24h":{ "type": "float" }
+          }
+        },
+        "ai_species":   { "type": "keyword" },
+        "ai_sex":       { "type": "keyword" },
+        "ai_age_class": { "type": "keyword" },
+        "ai_labels":    { "type": "keyword" },
+        "animal_id":    { "type": "keyword" }
+      }
+    }
+  },
+  "_meta": { "description": "Tactacam trail camera images with weather, GPS, and AI labels" }
+}
