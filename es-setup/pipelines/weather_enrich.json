@@ -1,5 +1,5 @@
 {
-  "description": "Normalize weather docs for HuntApp",
+  "description": "Normalize weather docs for Ridgeline",
   "processors": [
     { "set": { "field": "location", "value": "{{lat}},{{lon}}" } },
     { "set": { "field": "source", "value": "open-meteo" } }

@@ -4,8 +4,8 @@ import React from 'react';
 import './globals.css';
 
 export const metadata = {
-  title: 'HuntApp',
-  description: 'HuntApp web',
+  title: 'Ridgeline',
+  description: 'Ridgeline – Hyper-local hunting intelligence',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

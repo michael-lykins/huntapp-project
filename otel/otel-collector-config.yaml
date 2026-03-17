@@ -20,7 +20,7 @@ processors:
         action: upsert
       - key: service.namespace
         action: upsert
-        value: huntapp
+        value: ridgeline
 
 exporters:
   otlphttp/elastic:

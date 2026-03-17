@@ -10,13 +10,13 @@ from fastapi.responses import JSONResponse
 from elasticsearch import Elasticsearch
 
 # Routers
-from app.api import events, images, waypoints, trailcams, geo
+from app.api import events, images, waypoints, trailcams, geo, intel, search
 from app.api.geo_ws import router as geo_ws_router
 from app.api.delete import router as delete_router
 
-logger = logging.getLogger("huntapp.api")
+logger = logging.getLogger("ridgeline.api")
 
-app = FastAPI(title="HuntApp API")
+app = FastAPI(title="Ridgeline API")
 
 # CORS: allow the Next.js dev server
 app.add_middleware(
@@ -69,6 +69,8 @@ app.include_router(images.router, prefix="/api")
 app.include_router(waypoints.router, prefix="/api")
 app.include_router(trailcams.router, prefix="/api")
 app.include_router(delete_router, prefix="/api")
+app.include_router(intel.router, prefix="/api")
+app.include_router(search.router, prefix="/api")
 
 @app.exception_handler(Exception)
 def global_exception_handler(request: Request, exc: Exception):

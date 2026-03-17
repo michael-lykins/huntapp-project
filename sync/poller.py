@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
 
-app = FastAPI(title="huntapp-sync-poller")
+app = FastAPI(title="ridgeline-sync-poller")
 _scheduler: BackgroundScheduler | None = None
 
 

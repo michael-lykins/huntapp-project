@@ -143,6 +143,8 @@ def _build_update(result: dict) -> dict:
         "ai_confidence": result.get("confidence"),
         "ai_labels": labels,
         "ai_notes": result.get("notes"),
+        # Populate semantic field so ELSER auto-embeds the note on ingest
+        "ai_notes_semantic": result.get("notes"),
     }
 
 

@@ -120,12 +120,12 @@ def upload_one(
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Bulk-upload images to HuntApp API (/api/images)."
+        description="Bulk-upload images to Ridgeline API (/api/images)."
     )
     ap.add_argument("folder", type=str, help="Folder containing images")
     ap.add_argument(
         "--api",
-        default=os.getenv("HUNTAPP_API", "http://localhost:8000/api/images"),
+        default=os.getenv("RIDGELINE_API", "http://localhost:8000/api/images"),
         help="Upload endpoint (default: %(default)s or $HUNTAPP_API)",
     )
     ap.add_argument(

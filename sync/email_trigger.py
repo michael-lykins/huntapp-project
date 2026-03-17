@@ -24,7 +24,7 @@ import uvicorn
 
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="huntapp-email-trigger")
+app = FastAPI(title="ridgeline-email-trigger")
 
 POLLER_URL = os.getenv("POLLER_URL", "http://sync:8100")
 

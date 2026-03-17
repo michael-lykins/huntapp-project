@@ -11,7 +11,7 @@ logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
-logger = logging.getLogger("huntapp-worker")
+logger = logging.getLogger("ridgeline-worker")
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 CHANNEL = os.getenv("IMAGE_UPLOADED_CHANNEL", "image_uploaded")

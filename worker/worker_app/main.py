@@ -9,7 +9,7 @@ from lib.services.elastic_client import get_elasticsearch_client
 from lib.services.redis_conn import get_redis_client
 from rq import Worker, Queue, Connection
 
-log = logging.getLogger("huntapp.worker")
+log = logging.getLogger("ridgeline.worker")
 
 
 es = get_elasticsearch_client(
