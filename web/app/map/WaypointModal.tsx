@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 type WaypointTypeKey =
   | "location"
@@ -32,7 +32,7 @@ type Props = {
   onDelete?: (id: string) => Promise<void>;
 };
 
-const TYPE_DEFS: { key: WaypointTypeKey; label: string; icon: JSX.Element }[] = [
+const TYPE_DEFS: { key: WaypointTypeKey; label: string; icon: React.JSX.Element }[] = [
   { key: "location",     label: "Location",     icon: <span style={{fontSize:22}}>📍</span> },
   { key: "bedding_area", label: "Bedding Area", icon: <span style={{fontSize:22}}>🛏️</span> },
   { key: "ladder_stand", label: "Ladder Stand", icon: <span style={{fontSize:22}}>🪜</span> },

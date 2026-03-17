@@ -1,8 +1,6 @@
 // web/pages/gallery.tsx
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { getEventIcon } from '../components/pinIcons.client';
-
 // Removed duplicate default export (MapPage)
 
 type LatLon = { lat: number; lon: number };
