@@ -137,6 +137,9 @@ services:
     container_name: web
     ports:
       - "3030:3030"
+    volumes:
+      - ./web:/app                  # hot-reload: host source → container
+      - web_node_modules:/app/node_modules  # keep container's node_modules isolated
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3030"]
       interval: 5s
@@ -283,3 +286,4 @@ services:
 
 volumes:
   minio-data:
+  web_node_modules:

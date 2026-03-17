@@ -36,6 +36,7 @@ INDEX: tactacam-images
   @timestamp          date       — when the photo was taken (UTC)
   camera_id           keyword    — unique camera identifier
   camera_name         keyword    — human name of the camera (e.g. "Bedding Area")
+  s3_key              keyword    — image storage key (ALWAYS include this field when returning individual image rows)
   ai_has_animal       boolean    — true if an animal was detected
   ai_species          keyword    — species common name (e.g. "White-tailed deer", "Raccoon")
   ai_sex              keyword    — "male", "female", or "unknown"
@@ -71,6 +72,7 @@ ES|QL syntax notes:
 - String comparison is case-sensitive; common species values include: "White-tailed deer", "Raccoon", "Wild turkey", "Eastern cottontail rabbit", "Coyote", "coyote", "Bobcat"
 - weather.pressure_tendency values are "R" for rising, "F" for falling, "S" for steady
 - For time-of-day analysis, use DATE_EXTRACT("hour_of_day", @timestamp) to get the hour (0-23)
+- When the question asks about specific images (oldest, newest, most recent, a particular photo), always SELECT s3_key, camera_name, ai_species, ai_sex, ai_age_class, ai_notes along with @timestamp so images can be displayed
 """
 
 ESQL_SYSTEM = f"""{SCHEMA}
@@ -231,6 +233,25 @@ def ask(req: AskRequest):
         except Exception as exc:
             logger.warning("Semantic search failed: %s", exc)
 
+    # Prefer images from ES|QL records (exact query results) over ELSER semantic matches.
+    # ES|QL records have images when the query returns individual rows (not aggregations).
+    esql_images = [
+        {
+            "doc_id": r.get("_id", r.get("camera_id", "")),
+            "camera_name": r.get("camera_name"),
+            "ai_species": r.get("ai_species"),
+            "ai_sex": r.get("ai_sex"),
+            "ai_age_class": r.get("ai_age_class"),
+            "ai_confidence": r.get("ai_confidence"),
+            "ai_notes": r.get("ai_notes"),
+            "timestamp": r.get("@timestamp"),
+            "s3_key": r.get("s3_key"),
+            "url": f"{S3_PUBLIC_ENDPOINT}/{S3_BUCKET}/{r['s3_key']}" if r.get("s3_key") else None,
+        }
+        for r in records
+        if r.get("s3_key")
+    ]
+
     # Stage 3 — Generate hunter-friendly answer
     data_summary = (
         f"Query result ({len(records)} rows):\n{json.dumps(records[:20], default=str, indent=2)}"
@@ -263,11 +284,15 @@ Give a concise, actionable hunting answer based on this data."""
     cost = _token_cost(total_in, total_out)
     logger.info("Intel query cost: $%.5f (%d in, %d out tokens)", cost, total_in, total_out)
 
+    # Use ES|QL images if the query returned individual records with images;
+    # otherwise fall back to ELSER semantic search results.
+    images = esql_images[:6] if esql_images else semantic_images
+
     return AskResponse(
         answer=answer,
         esql_query=esql_query,
         row_count=len(records),
-        images=semantic_images,
+        images=images,
         error=esql_error,
         tokens_in=total_in,
         tokens_out=total_out,
