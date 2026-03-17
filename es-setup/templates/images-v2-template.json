@@ -1,0 +1,30 @@
+{
+"index_templates": [
+{
+"name": "images-v2-template",
+"index_template": {
+"index_patterns": ["images-v2"],
+"template": {
+"settings": {"index": {"knn": true, "refresh_interval": "1s"}},
+"mappings": {
+"properties": {
+"ingested_at": {"type": "date"},
+"source_url": {"type": "keyword"},
+"analysis": {
+"properties": {
+"has_animal": {"type": "boolean"},
+"species": {"type": "keyword"},
+"sex": {"type": "keyword"},
+"age_estimate": {"type": "keyword"},
+"confidence": {"type": "float"},
+"notes": {"type": "text"}
+}
+},
+"embedding": {"type": "dense_vector", "dims": 512, "index": true, "similarity": "cosine"}
+}
+}
+}
+}
+}
+]
+}

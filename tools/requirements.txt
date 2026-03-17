@@ -1,0 +1,5 @@
+requests>=2.31
+tqdm>=4.66
+Pillow>=10.3
+python-dotenv>=1.0  # load .env for API URL or defaults
+click>=8.1          # if you switch from argparse to Click CLI later
