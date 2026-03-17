@@ -23,7 +23,7 @@ class Dock implements mapboxgl.IControl {
   constructor(modeRef: React.MutableRefObject<Mode>) {
     this.modeRef = modeRef;
   }
-  getDefaultPosition() {
+  getDefaultPosition(): mapboxgl.ControlPosition {
     return 'top-right';
   }
   onAdd() {
