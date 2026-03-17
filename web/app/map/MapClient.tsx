@@ -76,7 +76,7 @@ export default function MapClient() {
   const [counts, setCounts] = useState({ features: 0, cams: 0 });
 
   const bboxParam = () => {
-    const b = mapRef.current!.getBounds();
+    const b = mapRef.current!.getBounds()!;
     return `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`;
   };
 
