@@ -48,12 +48,37 @@ def trigger(
 
     For a rolling lookback use backfill_days:
         POST /trigger?backfill_days=90
+
+    Backfills (since_date or backfill_days) run in the background and return
+    immediately — check container logs for progress.
     """
     logger.info(
         "Manual trigger received, camera_ids=%s, backfill_days=%s, since_date=%s",
         camera_ids, backfill_days, since_date,
     )
-    synced = run_sync(camera_ids=camera_ids, backfill_days=backfill_days, since_date=since_date)
+    is_backfill = backfill_days is not None or since_date is not None
+
+    if is_backfill:
+        # Backfills can take minutes to hours — run async so the caller gets
+        # an immediate acknowledgement instead of a timeout.
+        def _run():
+            try:
+                synced = run_sync(camera_ids=camera_ids, backfill_days=backfill_days, since_date=since_date)
+                ai_stats = run_analysis()
+                logger.info("Backfill complete: synced=%s ai=%s", synced, ai_stats)
+            except Exception as exc:
+                logger.error("Backfill failed: %s", exc, exc_info=True)
+
+        threading.Thread(target=_run, daemon=True).start()
+        return {
+            "status": "backfill_started",
+            "since_date": since_date,
+            "backfill_days": backfill_days,
+            "camera_ids": camera_ids,
+            "message": "Backfill running in background — follow logs for progress.",
+        }
+
+    synced = run_sync(camera_ids=camera_ids)
     ai_stats = run_analysis()
     return {"synced": synced, "ai": ai_stats}
 

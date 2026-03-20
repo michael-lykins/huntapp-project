@@ -27,7 +27,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.2,service.namespace=ridgeline
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production,service.version=0.1.2,service.namespace=ridgeline
       OTEL_SERVICE_NAME: ridgeline-api
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
@@ -95,7 +95,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.2,service.namespace=ridgeline
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production,service.version=0.1.2,service.namespace=ridgeline
       OTEL_SERVICE_NAME: ridgeline-worker
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
@@ -206,7 +206,7 @@ services:
       ELASTIC_OTEL_API_KEY: ${ELASTIC_OTEL_API_KEY}
       ELASTIC_OTEL_SERVICE_NAME: ridgeline-collector
       ELASTIC_OTEL_METRICS_INTERVAL: 60s
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.2,service.namespace=ridgeline
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production,service.version=0.1.2,service.namespace=ridgeline
       OTEL_LOG_LEVEL: debug
       OTEL_TRACES_SAMPLER: parentbased_always_on
 
@@ -252,7 +252,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=ridgeline
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production,service.version=0.1.0,service.namespace=ridgeline
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
       OTEL_PROPAGATORS: tracecontext,baggage
@@ -286,7 +286,7 @@ services:
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
       OTEL_EXPORTER_OTLP_ENDPOINT: otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=ridgeline
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production,service.version=0.1.0,service.namespace=ridgeline
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
     depends_on:

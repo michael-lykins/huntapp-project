@@ -27,7 +27,12 @@ class TactacamClient:
         url = f"{BASE_URL}{path}"
         resp = self._session.get(url, headers=self._headers(), params=params, timeout=30)
         resp.raise_for_status()
-        return resp.json() if resp.content else {}
+        if not resp.content:
+            return {}
+        data = resp.json()
+        # Tactacam API wraps all responses: {"message": "Success", "response": {...}}
+        # Unwrap so callers always see the inner payload.
+        return data.get("response", data)
 
     def _patch(self, path: str, body: dict) -> dict:
         url = f"{BASE_URL}{path}"
