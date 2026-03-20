@@ -38,13 +38,21 @@ INDEX: tactacam-images
   camera_name         keyword    — human name of the camera (e.g. "Bedding Area")
   s3_key              keyword    — image storage key (ALWAYS include this field when returning individual image rows)
   ai_has_animal       boolean    — true if an animal was detected
-  ai_species          keyword    — species common name (e.g. "White-tailed deer", "Raccoon")
-  ai_sex              keyword    — "male", "female", or "unknown"
-  ai_age_class        keyword    — "fawn", "yearling", "2.5", "3.5+", or "unknown"
-  ai_antlers          text       — free-text antler description (null if not applicable)
-  ai_confidence       float      — 0.0–1.0 confidence score
-  ai_notes            text       — one-sentence GPT observation about the image
+  ai_species          keyword    — AI species common name (e.g. "White-tailed deer", "Raccoon")
+  ai_sex              keyword    — AI sex: "male", "female", or "unknown"
+  ai_age_class        keyword    — AI age: "fawn", "yearling", "2.5", "3.5+", or "unknown"
+  ai_antlers          text       — AI free-text antler description
+  ai_confidence       float      — 0.0–1.0 AI confidence score
+  ai_notes            text       — one-sentence AI observation about the image
   has_headshot        boolean    — Tactacam's own animal-detected flag
+  human_labeled       boolean    — true when a human has verified / corrected the AI labels
+  human_species       keyword    — human-verified species (overrides ai_species when present)
+  human_sex           keyword    — human-verified sex (overrides ai_sex when present)
+  human_age_class     keyword    — human-verified age class (overrides ai_age_class when present)
+  human_antlers       text       — human-written antler description (overrides ai_antlers when present)
+  human_notes         text       — human notes (overrides ai_notes when present)
+  animal_name         keyword    — custom name given by the hunter (e.g. "Split Brow", "Big 8")
+  animal_id           keyword    — slug for tracking an individual animal across sightings
   weather.temperature float      — temperature in °F at capture time
   weather.wind_speed  float      — wind speed in mph
   weather.wind_cardinal keyword  — wind direction (N, NE, NW, S, SW, etc.)
@@ -62,9 +70,18 @@ INDEX: tactacam-cameras
   battery_level       keyword    — battery percentage string
   signal_strength     keyword    — signal string
 
+CRITICAL — Human labels override AI labels:
+When querying species, sex, age class, or notes, ALWAYS use COALESCE to prefer
+human-verified values over AI-generated ones. Examples:
+  COALESCE(human_species, ai_species)    — effective species
+  COALESCE(human_sex, ai_sex)            — effective sex
+  COALESCE(human_age_class, ai_age_class)— effective age class
+Example filter: WHERE COALESCE(human_species, ai_species) == "White-tailed deer"
+Example grouping: STATS count = COUNT(*) BY COALESCE(human_species, ai_species)
+
 ES|QL syntax notes:
 - Use FROM to select an index: FROM tactacam-images
-- Filter with WHERE: WHERE ai_has_animal == true AND ai_species == "White-tailed deer"
+- Filter with WHERE: WHERE ai_has_animal == true AND COALESCE(human_species, ai_species) == "White-tailed deer"
 - Date math: WHERE @timestamp > NOW() - 30 days
 - Aggregation: STATS count = COUNT(*) BY camera_name
 - Sort: SORT count DESC
@@ -72,7 +89,8 @@ ES|QL syntax notes:
 - String comparison is case-sensitive; common species values include: "White-tailed deer", "Raccoon", "Wild turkey", "Eastern cottontail rabbit", "Coyote", "coyote", "Bobcat"
 - weather.pressure_tendency values are "R" for rising, "F" for falling, "S" for steady
 - For time-of-day analysis, use DATE_EXTRACT("hour_of_day", @timestamp) to get the hour (0-23)
-- When the question asks about specific images (oldest, newest, most recent, a particular photo), always SELECT s3_key, camera_name, ai_species, ai_sex, ai_age_class, ai_notes along with @timestamp so images can be displayed
+- When the question asks about specific images (oldest, newest, most recent, a particular photo), always SELECT s3_key, camera_name, COALESCE(human_species, ai_species) AS species, COALESCE(human_sex, ai_sex) AS sex, COALESCE(human_age_class, ai_age_class) AS age_class, animal_name along with @timestamp so images can be displayed
+- When the user asks about a named animal (e.g. "Show me Big 8" or "find Split Brow"), filter on animal_name or animal_id
 """
 
 ESQL_SYSTEM = f"""{SCHEMA}
@@ -119,15 +137,30 @@ def _esql_to_records(result: dict) -> list[dict]:
 # ── Semantic image search ───────────────────────────────────────────────────────
 
 def _semantic_search(query: str, limit: int = 6) -> list[dict]:
-    """Run ELSER semantic search on ai_notes_semantic, return image hit dicts."""
+    """Run ELSER semantic search on ai_notes_semantic, boosting human-verified docs."""
     try:
         resp = requests.post(
             f"{ELASTIC_HOST}/{IMAGES_INDEX}/_search",
             json={
-                "query": {"semantic": {"field": "ai_notes_semantic", "query": query}},
+                # Wrap semantic query in function_score to boost human-labeled docs
+                "query": {
+                    "function_score": {
+                        "query": {"semantic": {"field": "ai_notes_semantic", "query": query}},
+                        "functions": [
+                            {
+                                "filter": {"term": {"human_labeled": True}},
+                                "weight": 1.5,
+                            }
+                        ],
+                        "score_mode": "multiply",
+                    }
+                },
                 "size": limit,
                 "_source": ["camera_name", "ai_species", "ai_sex", "ai_age_class",
-                            "ai_confidence", "ai_notes", "@timestamp", "s3_key"],
+                            "ai_confidence", "ai_notes", "ai_antlers",
+                            "human_labeled", "human_species", "human_sex", "human_age_class",
+                            "human_notes", "animal_name",
+                            "@timestamp", "s3_key"],
             },
             headers={"Authorization": f"ApiKey {ELASTIC_API_KEY}", "Content-Type": "application/json"},
             timeout=15,
@@ -138,15 +171,17 @@ def _semantic_search(query: str, limit: int = 6) -> list[dict]:
         for h in hits:
             src = h.get("_source", {})
             s3_key = src.get("s3_key")
+            # Surface effective (human-preferred) values to the UI
             results.append({
                 "score": round(h.get("_score", 0), 4),
                 "doc_id": h["_id"],
                 "camera_name": src.get("camera_name"),
-                "ai_species": src.get("ai_species"),
-                "ai_sex": src.get("ai_sex"),
-                "ai_age_class": src.get("ai_age_class"),
+                "ai_species": src.get("human_species") or src.get("ai_species"),
+                "ai_sex": src.get("human_sex") or src.get("ai_sex"),
+                "ai_age_class": src.get("human_age_class") or src.get("ai_age_class"),
                 "ai_confidence": src.get("ai_confidence"),
-                "ai_notes": src.get("ai_notes"),
+                "ai_notes": src.get("human_notes") or src.get("ai_notes"),
+                "animal_name": src.get("animal_name"),
                 "timestamp": src.get("@timestamp"),
                 "s3_key": s3_key,
                 "url": f"{S3_PUBLIC_ENDPOINT}/{S3_BUCKET}/{s3_key}" if s3_key else None,

@@ -37,3 +37,8 @@ web/.env.*
 *.local
 backend/.env.api
 worker/.env.worker
+
+# Credential files
+.elastic-credentials
+*.credentials
+*.api-key.txt

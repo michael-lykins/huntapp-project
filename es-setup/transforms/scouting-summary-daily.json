@@ -1,0 +1,63 @@
+{
+  "source": {
+    "index": ["tactacam-images"],
+    "query": { "term": { "ai_analyzed": true } }
+  },
+  "dest": {
+    "index": "scouting-summary-daily"
+  },
+  "sync": {
+    "time": {
+      "field": "ai_analyzed_at",
+      "delay": "60s"
+    }
+  },
+  "pivot": {
+    "group_by": {
+      "camera_id":    { "terms": { "field": "camera_id" } },
+      "date":         { "date_histogram": { "field": "@timestamp", "calendar_interval": "1d" } }
+    },
+    "aggregations": {
+      "image_count":    { "value_count": { "field": "@timestamp" } },
+      "animal_images":  {
+        "filter": { "term": { "ai_has_animal": true } }
+      },
+      "avg_confidence": { "avg": { "field": "ai_confidence" } },
+      "top_species": {
+        "top_metrics": {
+          "metrics": [{ "field": "ai_species" }],
+          "sort": { "ai_confidence": "desc" }
+        }
+      },
+      "camera_name": {
+        "top_metrics": {
+          "metrics": [{ "field": "camera_name" }],
+          "sort": { "@timestamp": "desc" }
+        }
+      },
+      "buck_images": {
+        "filter": {
+          "bool": {
+            "must": [
+              { "term": { "ai_has_animal": true } },
+              { "term": { "ai_sex": "male" } }
+            ]
+          }
+        }
+      },
+      "doe_images": {
+        "filter": {
+          "bool": {
+            "must": [
+              { "term": { "ai_has_animal": true } },
+              { "term": { "ai_sex": "female" } }
+            ]
+          }
+        }
+      },
+      "avg_temp":         { "avg": { "field": "weather.temperature" } },
+      "avg_wind_speed":   { "avg": { "field": "weather.wind_speed" } }
+    }
+  },
+  "description": "Daily per-camera scouting summary: image counts, species breakdown, weather averages"
+}

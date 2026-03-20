@@ -161,13 +161,25 @@ def _build_index_doc(photo: dict, camera: dict, s3_key: str) -> dict:
     return doc
 
 
-def run_sync(camera_ids: list[str] | None = None, dry_run: bool = False) -> dict[str, int]:
+def run_sync(
+    camera_ids: list[str] | None = None,
+    dry_run: bool = False,
+    backfill_days: int | None = None,
+    since_date: str | None = None,
+) -> dict[str, int]:
     """
     Run a full sync cycle in a single pass through the photo feed.
 
     Args:
         camera_ids: If set, only collect photos for these cameras.
         dry_run: Skip all writes (auth/connectivity test only).
+        backfill_days: If set, ignore per-camera history and pull all photos
+            from this many days back. Mutually exclusive with since_date.
+        since_date: ISO date string (YYYY-MM-DD) representing the earliest
+            photo date to include. Overrides both backfill_days and per-camera
+            history. Use this for full historical backfills where the exact
+            start date is known (e.g. since_date="2022-12-13" captures every
+            photo in the account from that date forward).
     """
     auth = TactacamAuth()
     client = TactacamClient(auth)
@@ -187,12 +199,22 @@ def run_sync(camera_ids: list[str] | None = None, dry_run: bool = False) -> dict
     last_sync_map = _last_sync_ts_all(es, list(active_ids))
 
     # Cutoff: oldest timestamp we care about.
-    # For cameras with no history, use INITIAL_LOOKBACK_DAYS.
-    initial_cutoff = datetime.now(timezone.utc) - timedelta(days=INITIAL_LOOKBACK_DAYS)
-    cutoff_map: dict[str, datetime] = {
-        cid: (last_sync_map.get(cid) or initial_cutoff)
-        for cid in active_ids
-    }
+    # Priority: since_date (absolute) > backfill_days (relative) > per-camera history
+    if since_date is not None:
+        # Parse the user-supplied date and subtract 1 hour so that any photo
+        # timestamped exactly at midnight on that day is still captured.
+        parsed_date = datetime.fromisoformat(since_date).replace(tzinfo=timezone.utc)
+        initial_cutoff = parsed_date - timedelta(hours=1)
+        cutoff_map: dict[str, datetime] = {cid: initial_cutoff for cid in active_ids}
+    elif backfill_days is not None:
+        initial_cutoff = datetime.now(timezone.utc) - timedelta(days=backfill_days)
+        cutoff_map: dict[str, datetime] = {cid: initial_cutoff for cid in active_ids}
+    else:
+        initial_cutoff = datetime.now(timezone.utc) - timedelta(days=INITIAL_LOOKBACK_DAYS)
+        cutoff_map: dict[str, datetime] = {
+            cid: (last_sync_map.get(cid) or initial_cutoff)
+            for cid in active_ids
+        }
     global_cutoff = min(cutoff_map.values())
 
     logger.info(

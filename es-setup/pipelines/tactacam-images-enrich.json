@@ -1,0 +1,47 @@
+{
+  "description": "Enrich tactacam-images documents with current camera metadata at ingest",
+  "processors": [
+    {
+      "enrich": {
+        "policy_name": "camera-metadata-enrich",
+        "field": "camera_id",
+        "target_field": "_camera_enrich",
+        "ignore_missing": true
+      }
+    },
+    {
+      "set": {
+        "if": "ctx._camera_enrich != null && ctx._camera_enrich.camera_name != null",
+        "field": "camera_name",
+        "value": "{{_camera_enrich.camera_name}}"
+      }
+    },
+    {
+      "set": {
+        "if": "ctx._camera_enrich != null && ctx._camera_enrich.property_name != null",
+        "field": "property_name",
+        "value": "{{_camera_enrich.property_name}}"
+      }
+    },
+    {
+      "set": {
+        "if": "ctx._camera_enrich != null && ctx._camera_enrich.property_id != null",
+        "field": "property_id",
+        "value": "{{_camera_enrich.property_id}}"
+      }
+    },
+    {
+      "set": {
+        "if": "ctx._camera_enrich != null && ctx._camera_enrich.location != null && ctx.location == null",
+        "field": "location",
+        "value": "{{_camera_enrich.location}}"
+      }
+    },
+    {
+      "remove": {
+        "field": "_camera_enrich",
+        "ignore_missing": true
+      }
+    }
+  ]
+}

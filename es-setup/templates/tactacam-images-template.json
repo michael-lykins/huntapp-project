@@ -31,20 +31,44 @@
             "temp_departure_24h":{ "type": "float" }
           }
         },
-        "ai_analyzed":    { "type": "boolean" },
-        "ai_analyzed_at": { "type": "date" },
-        "ai_has_animal":  { "type": "boolean" },
-        "ai_species":     { "type": "keyword" },
-        "ai_sex":         { "type": "keyword" },
-        "ai_age_class":   { "type": "keyword" },
-        "ai_antlers":     { "type": "text" },
-        "ai_labels":      { "type": "keyword" },
-        "ai_confidence":  { "type": "float" },
-        "ai_notes":       { "type": "text" },
-        "ai_error":       { "type": "keyword" },
-        "animal_id":      { "type": "keyword" }
+        "ai_analyzed":          { "type": "boolean" },
+        "ai_analyzed_at":       { "type": "date" },
+        "ai_has_animal":        { "type": "boolean" },
+        "ai_species":           { "type": "keyword" },
+        "ai_sex":               { "type": "keyword" },
+        "ai_age_class":         { "type": "keyword" },
+        "ai_antlers":           { "type": "text" },
+        "ai_labels":            { "type": "keyword" },
+        "ai_confidence":        { "type": "float" },
+        "ai_notes":             { "type": "text" },
+        "ai_error":             { "type": "keyword" },
+        "animal_id":            { "type": "keyword" },
+        "animal_name":          { "type": "keyword" },
+
+        "human_labeled":        { "type": "boolean" },
+        "human_species":        { "type": "keyword" },
+        "human_sex":            { "type": "keyword" },
+        "human_age_class":      { "type": "keyword" },
+        "human_antlers":        { "type": "text" },
+        "human_notes":          { "type": "text" },
+
+        "ai_notes_semantic": {
+          "type": "semantic_text",
+          "inference_id": "ridgeline-elser"
+        },
+        "ai_antlers_semantic": {
+          "type": "semantic_text",
+          "inference_id": "ridgeline-elser"
+        },
+
+        "embedding": {
+          "type": "dense_vector",
+          "dims": 512,
+          "index": true,
+          "similarity": "cosine"
+        }
       }
     }
   },
-  "_meta": { "description": "Tactacam trail camera images with weather, GPS, and AI labels" }
+  "_meta": { "description": "Tactacam trail camera images with weather, GPS, AI labels, ELSER semantic search, and CLIP embeddings" }
 }

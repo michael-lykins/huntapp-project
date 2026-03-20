@@ -132,7 +132,7 @@ def _build_update(result: dict) -> dict:
     if result.get("age_class") and result["age_class"] != "unknown":
         labels.append(result["age_class"])
 
-    return {
+    update = {
         "ai_analyzed": True,
         "ai_analyzed_at": datetime.now(timezone.utc).isoformat(),
         "ai_has_animal": result.get("has_animal", False),
@@ -143,9 +143,11 @@ def _build_update(result: dict) -> dict:
         "ai_confidence": result.get("confidence"),
         "ai_labels": labels,
         "ai_notes": result.get("notes"),
-        # Populate semantic field so ELSER auto-embeds the note on ingest
+        # Populate semantic fields so ELSER auto-embeds on ingest
         "ai_notes_semantic": result.get("notes"),
+        "ai_antlers_semantic": result.get("antlers"),
     }
+    return update
 
 
 def run_analysis(batch_size: int = BATCH_SIZE) -> dict:

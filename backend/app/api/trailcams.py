@@ -14,6 +14,7 @@ import boto3
 from botocore.client import Config
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from elasticsearch import Elasticsearch
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,9 @@ def camera_images(
                     "ai_age_class", "ai_antlers", "ai_confidence",
                     "ai_labels", "ai_notes", "has_headshot",
                     "camera_name",
+                    "human_labeled", "human_species", "human_sex",
+                    "human_age_class", "human_antlers", "human_notes",
+                    "animal_name", "animal_id",
                     "weather.temperature", "weather.wind_speed", "weather.wind_cardinal",
                     "weather.pressure_hpa", "weather.pressure_tendency",
                     "weather.moon_phase", "weather.sun_phase", "weather.label",
@@ -163,6 +167,14 @@ def camera_images(
             "ai_notes": src.get("ai_notes"),
             "has_headshot": src.get("has_headshot"),
             "camera_name": src.get("camera_name"),
+            "human_labeled": src.get("human_labeled"),
+            "human_species": src.get("human_species"),
+            "human_sex": src.get("human_sex"),
+            "human_age_class": src.get("human_age_class"),
+            "human_antlers": src.get("human_antlers"),
+            "human_notes": src.get("human_notes"),
+            "animal_name": src.get("animal_name"),
+            "animal_id": src.get("animal_id"),
             "weather": src.get("weather"),
         })
 
@@ -220,7 +232,20 @@ def camera_stats(camera_id: str, request: Request, es: Elasticsearch = Depends(_
                 ]}},
                 "aggs": {
                     "by_species": {
-                        "terms": {"field": "ai_species", "size": 20},
+                        # Prefer human_species when present, fall back to ai_species
+                        "terms": {
+                            "script": {
+                                "source": (
+                                    "def h = doc.containsKey('human_species') && doc['human_species'].size() > 0 "
+                                    "? doc['human_species'].value : null; "
+                                    "def a = doc.containsKey('ai_species') && doc['ai_species'].size() > 0 "
+                                    "? doc['ai_species'].value : null; "
+                                    "return h != null ? h : a"
+                                ),
+                                "lang": "painless",
+                            },
+                            "size": 20,
+                        },
                     },
                 },
             },
@@ -232,9 +257,51 @@ def camera_stats(camera_id: str, request: Request, es: Elasticsearch = Depends(_
     species = [
         {"species": b["key"], "count": b["doc_count"]}
         for b in aggs.get("by_species", {}).get("buckets", [])
+        if b["key"]  # filter out null bucket
     ]
     return {
         "camera_id": camera_id,
         "animal_photos": resp["hits"]["total"]["value"],
         "species": species,
     }
+
+
+class ImageLabelUpdate(BaseModel):
+    human_species: Optional[str] = None
+    human_sex: Optional[str] = None
+    human_age_class: Optional[str] = None
+    human_antlers: Optional[str] = None
+    human_notes: Optional[str] = None
+    animal_name: Optional[str] = None   # e.g. "Split Brow", "Big 8"
+    animal_id: Optional[str] = None     # slug for grouping sightings
+
+
+@router.patch("/trailcams/images/{doc_id}")
+def label_image(doc_id: str, body: ImageLabelUpdate, request: Request, es: Elasticsearch = Depends(_es)):
+    """
+    Apply human-verified labels and/or a custom animal name to a tactacam-images document.
+    Only non-None fields in the request body are written, so partial updates are safe.
+    """
+    update: dict = {"human_labeled": True}
+
+    if body.human_species is not None:
+        update["human_species"] = body.human_species or None
+    if body.human_sex is not None:
+        update["human_sex"] = body.human_sex or None
+    if body.human_age_class is not None:
+        update["human_age_class"] = body.human_age_class or None
+    if body.human_antlers is not None:
+        update["human_antlers"] = body.human_antlers or None
+    if body.human_notes is not None:
+        update["human_notes"] = body.human_notes or None
+    if body.animal_name is not None:
+        update["animal_name"] = body.animal_name or None
+    if body.animal_id is not None:
+        update["animal_id"] = body.animal_id or None
+
+    try:
+        es.update(index=IMAGES_INDEX, id=doc_id, doc=update)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+    return {"ok": True, "doc_id": doc_id, "updated": update}

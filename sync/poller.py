@@ -19,10 +19,12 @@ import uvicorn
 
 from .syncer import run_sync
 from .analyzer import run_analysis
+from .onx_syncer import run_onx_sync
 
 logger = logging.getLogger(__name__)
 
 POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
+ONX_SYNC_INTERVAL_HOURS = int(os.getenv("ONX_SYNC_INTERVAL_HOURS", "6"))
 
 app = FastAPI(title="ridgeline-sync-poller")
 _scheduler: BackgroundScheduler | None = None
@@ -34,10 +36,24 @@ def health():
 
 
 @app.post("/trigger")
-def trigger(camera_ids: list[str] | None = None):
-    """Fire an immediate sync + AI analysis outside the scheduled window."""
-    logger.info("Manual trigger received, camera_ids=%s", camera_ids)
-    synced = run_sync(camera_ids=camera_ids)
+def trigger(
+    camera_ids: list[str] | None = None,
+    backfill_days: int | None = None,
+    since_date: str | None = None,
+):
+    """Fire an immediate sync + AI analysis outside the scheduled window.
+
+    For a full historical backfill use since_date (preferred):
+        POST /trigger?since_date=2022-12-13
+
+    For a rolling lookback use backfill_days:
+        POST /trigger?backfill_days=90
+    """
+    logger.info(
+        "Manual trigger received, camera_ids=%s, backfill_days=%s, since_date=%s",
+        camera_ids, backfill_days, since_date,
+    )
+    synced = run_sync(camera_ids=camera_ids, backfill_days=backfill_days, since_date=since_date)
     ai_stats = run_analysis()
     return {"synced": synced, "ai": ai_stats}
 
@@ -47,6 +63,22 @@ def analyze():
     """Run a standalone AI analysis pass (no sync)."""
     stats = run_analysis()
     return {"ai": stats}
+
+
+@app.post("/trigger/onx")
+def trigger_onx():
+    """Fire an immediate OnX sync (waypoints, shapes, tracks, land areas, cameras)."""
+    logger.info("Manual OnX sync trigger received")
+    results = run_onx_sync()
+    return {"onx": results}
+
+
+def _scheduled_onx_sync():
+    logger.info("Scheduled OnX sync started")
+    try:
+        run_onx_sync()
+    except Exception as exc:
+        logger.error("Scheduled OnX sync failed: %s", exc, exc_info=True)
 
 
 def _scheduled_sync():
@@ -68,8 +100,18 @@ def start_scheduler():
         replace_existing=True,
         max_instances=1,
     )
+    _scheduler.add_job(
+        _scheduled_onx_sync,
+        trigger=IntervalTrigger(hours=ONX_SYNC_INTERVAL_HOURS),
+        id="onx_sync",
+        replace_existing=True,
+        max_instances=1,
+    )
     _scheduler.start()
-    logger.info("Scheduler started — polling every %d min", POLL_INTERVAL_MINUTES)
+    logger.info(
+        "Scheduler started — Tactacam every %d min, OnX every %d hrs",
+        POLL_INTERVAL_MINUTES, ONX_SYNC_INTERVAL_HOURS,
+    )
 
 
 def main():

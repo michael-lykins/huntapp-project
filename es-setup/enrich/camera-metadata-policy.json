@@ -1,0 +1,15 @@
+{
+  "match": {
+    "indices": "tactacam-cameras",
+    "match_field": "camera_id",
+    "enrich_fields": [
+      "camera_name",
+      "property_name",
+      "property_id",
+      "location",
+      "battery_level",
+      "signal_strength",
+      "model"
+    ]
+  }
+}
