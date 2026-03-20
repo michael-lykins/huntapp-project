@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import mapboxgl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import ReactMarkdown from 'react-markdown';
 
 type Mode = 'default' | 'add' | 'delete';
 type FC = { type: 'FeatureCollection'; features: any[] };
@@ -47,6 +48,15 @@ interface CameraImage {
   ai_notes?: string;
   has_headshot?: boolean;
   weather?: Weather;
+  // Human overrides
+  human_labeled?: boolean;
+  human_species?: string;
+  human_sex?: string;
+  human_age_class?: string;
+  human_antlers?: string;
+  human_notes?: string;
+  animal_name?: string;
+  animal_id?: string;
 }
 
 interface ActivityHour { hour: number; count: number; }
@@ -138,6 +148,17 @@ function CameraPanel({ camera, onClose }: PanelProps) {
   const [loading, setLoading] = useState(false);
   const [animalsOnly, setAnimalsOnly] = useState(false);
   const [selected, setSelected] = useState<CameraImage | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<Partial<CameraImage>>({});
+  const [saving, setSaving] = useState(false);
+  const [lightbox, setLightbox] = useState<CameraImage | null>(null);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightbox]);
 
   useEffect(() => {
     if (!camera) return;
@@ -167,6 +188,58 @@ function CameraPanel({ camera, onClose }: PanelProps) {
   const confPct = selected?.ai_confidence != null ? Math.round(selected.ai_confidence * 100) : null;
 
   return (
+    <>
+    {/* ── Lightbox overlay ── */}
+    {lightbox && (
+      <div
+        onClick={() => setLightbox(null)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 99999,
+          background: 'rgba(0,0,0,.92)',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <button
+          onClick={() => setLightbox(null)}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            background: 'rgba(255,255,255,.1)', border: 'none',
+            color: '#fff', borderRadius: 8, padding: '6px 14px',
+            cursor: 'pointer', fontSize: 18, lineHeight: 1,
+          }}
+        >&#x2715;</button>
+        <img
+          src={lightbox.url!}
+          alt={lightbox.filename}
+          onClick={e => e.stopPropagation()}
+          style={{
+            maxWidth: 'calc(100vw - 80px)',
+            maxHeight: 'calc(100vh - 120px)',
+            objectFit: 'contain',
+            borderRadius: 8,
+            boxShadow: '0 8px 40px rgba(0,0,0,.8)',
+          }}
+        />
+        <div style={{ marginTop: 12, textAlign: 'center', color: '#d1d5db', fontSize: 13 }}>
+          {lightbox.animal_name && (
+            <span style={{ color: '#fbbf24', fontWeight: 700, marginRight: 8 }}>{lightbox.animal_name}</span>
+          )}
+          {(lightbox.human_species || lightbox.ai_species) && (
+            <span>
+              {lightbox.human_species || lightbox.ai_species}
+              {(lightbox.human_sex || lightbox.ai_sex) && ` · ${lightbox.human_sex || lightbox.ai_sex}`}
+              {lightbox.human_labeled && <span style={{ color: '#60a5fa', marginLeft: 6, fontSize: 11 }}>✓ verified</span>}
+            </span>
+          )}
+          {lightbox.timestamp && (
+            <span style={{ color: '#6b7280', marginLeft: 12, fontSize: 11 }}>
+              {new Date(lightbox.timestamp).toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
+    )}
     <div style={{
       position: 'fixed', top: 0, right: 0, bottom: 0,
       width: 360, background: '#111827', color: '#f9fafb',
@@ -264,79 +337,177 @@ function CameraPanel({ camera, onClose }: PanelProps) {
               <img
                 src={selected.url!}
                 alt={selected.filename}
-                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block' }}
+                onClick={() => setLightbox(selected)}
+                style={{ width: '100%', maxHeight: 240, objectFit: 'cover', display: 'block', cursor: 'zoom-in' }}
               />
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => setLightbox(selected)}
+                title="View full size"
+                style={{
+                  position: 'absolute', bottom: 8, right: 8,
+                  background: 'rgba(0,0,0,.65)', border: 'none', color: '#fff',
+                  borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: 14,
+                  lineHeight: 1,
+                }}
+              >⛶</button>
+              <button
+                onClick={() => { setSelected(null); setEditing(false); }}
                 style={{
                   position: 'absolute', top: 8, left: 8,
                   background: 'rgba(0,0,0,.65)', border: 'none', color: '#fff',
                   borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
                 }}
               >← back</button>
+              <button
+                onClick={() => {
+                  setEditing(e => !e);
+                  setEditDraft({
+                    human_species: selected.human_species ?? selected.ai_species ?? '',
+                    human_sex: selected.human_sex ?? selected.ai_sex ?? '',
+                    human_age_class: selected.human_age_class ?? selected.ai_age_class ?? '',
+                    human_antlers: selected.human_antlers ?? selected.ai_antlers ?? '',
+                    human_notes: selected.human_notes ?? selected.ai_notes ?? '',
+                    animal_name: selected.animal_name ?? '',
+                    animal_id: selected.animal_id ?? '',
+                  });
+                }}
+                style={{
+                  position: 'absolute', top: 8, right: 8,
+                  background: editing ? 'rgba(22,101,52,.85)' : 'rgba(0,0,0,.65)',
+                  border: 'none', color: '#fff',
+                  borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12,
+                }}
+              >{editing ? 'cancel' : '✏ edit'}</button>
             </div>
+
             <div style={{ padding: '12px 14px 16px', fontSize: 13 }}>
-              {selected.ai_species ? (
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#34d399', marginBottom: 6 }}>
-                  {selected.ai_species}
-                  {selected.ai_sex && selected.ai_sex !== 'unknown' && ` · ${selected.ai_sex}`}
-                  {selected.ai_age_class && selected.ai_age_class !== 'unknown' && ` · ${selected.ai_age_class}`}
+              {editing ? (
+                /* ── Edit form ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[
+                    { label: 'Animal name', key: 'animal_name', placeholder: 'e.g. Split Brow, Big 8' },
+                    { label: 'Tracking ID', key: 'animal_id', placeholder: 'e.g. buck-001' },
+                    { label: 'Species', key: 'human_species', placeholder: selected.ai_species || 'e.g. White-tailed deer' },
+                    { label: 'Sex', key: 'human_sex', placeholder: selected.ai_sex || 'male / female / unknown' },
+                    { label: 'Age class', key: 'human_age_class', placeholder: selected.ai_age_class || 'fawn / yearling / 2.5 / 3.5+' },
+                    { label: 'Rack description', key: 'human_antlers', placeholder: selected.ai_antlers || 'Describe the rack' },
+                    { label: 'Notes', key: 'human_notes', placeholder: selected.ai_notes || 'Observations' },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key}>
+                      <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                      <input
+                        value={(editDraft as any)[key] ?? ''}
+                        onChange={e => setEditDraft(d => ({ ...d, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          background: '#1f2937', border: '1px solid #374151',
+                          borderRadius: 6, padding: '6px 8px', color: '#f9fafb',
+                          fontSize: 12, outline: 'none',
+                        }}
+                      />
+                    </div>
+                  ))}
+                  <button
+                    disabled={saving}
+                    onClick={async () => {
+                      setSaving(true);
+                      try {
+                        await fetch(`${API_BASE}/api/trailcams/images/${selected.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(editDraft),
+                        });
+                        const updated = { ...selected, ...editDraft, human_labeled: true };
+                        setSelected(updated);
+                        setImages(imgs => imgs.map(img => img.id === selected.id ? updated : img));
+                        setEditing(false);
+                      } catch (err) {
+                        console.error('Save failed', err);
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    style={{
+                      marginTop: 4, padding: '8px',
+                      background: '#166534', border: 'none', borderRadius: 8,
+                      color: '#fff', cursor: 'pointer', fontSize: 13,
+                      opacity: saving ? 0.6 : 1,
+                    }}
+                  >{saving ? 'Saving…' : 'Save labels'}</button>
                 </div>
               ) : (
-                <div style={{ color: '#6b7280', marginBottom: 6 }}>No animal detected</div>
-              )}
-              {confPct != null && (
-                <div style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 12 }}>
-                    <span style={{ color: '#9ca3af' }}>Confidence</span>
-                    <span style={{ color: '#f9fafb' }}>{confPct}%</span>
+                /* ── Read view ── */
+                <>
+                  {selected.animal_name && (
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#fbbf24', marginBottom: 2 }}>
+                      {selected.animal_name}
+                      {selected.animal_id && <span style={{ fontSize: 11, fontWeight: 400, color: '#78350f', marginLeft: 6 }}>#{selected.animal_id}</span>}
+                    </div>
+                  )}
+                  {(() => {
+                    const species = selected.human_species || selected.ai_species;
+                    const sex = selected.human_sex || selected.ai_sex;
+                    const age = selected.human_age_class || selected.ai_age_class;
+                    const isHuman = selected.human_labeled;
+                    return species ? (
+                      <div style={{ fontSize: 15, fontWeight: 700, color: isHuman ? '#60a5fa' : '#34d399', marginBottom: 6 }}>
+                        {species}
+                        {sex && sex !== 'unknown' && ` · ${sex}`}
+                        {age && age !== 'unknown' && ` · ${age}`}
+                        {isHuman && <span style={{ fontSize: 10, fontWeight: 400, color: '#3b82f6', marginLeft: 6 }}>✓ verified</span>}
+                      </div>
+                    ) : (
+                      <div style={{ color: '#6b7280', marginBottom: 6 }}>No animal detected</div>
+                    );
+                  })()}
+                  {confPct != null && !selected.human_labeled && (
+                    <div style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3, fontSize: 12 }}>
+                        <span style={{ color: '#9ca3af' }}>AI confidence</span>
+                        <span style={{ color: '#f9fafb' }}>{confPct}%</span>
+                      </div>
+                      <div style={{ height: 5, background: '#1f2937', borderRadius: 3 }}>
+                        <div style={{
+                          height: 5, borderRadius: 3, width: `${confPct}%`,
+                          background: confPct > 70 ? '#10b981' : confPct > 40 ? '#f59e0b' : '#ef4444',
+                        }} />
+                      </div>
+                    </div>
+                  )}
+                  {(selected.human_antlers || selected.ai_antlers) && (
+                    <div style={{ color: '#d1d5db', marginBottom: 4, fontSize: 12 }}>
+                      Rack: {selected.human_antlers || selected.ai_antlers}
+                    </div>
+                  )}
+                  {(selected.human_notes || selected.ai_notes) && (
+                    <div style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: 12, lineHeight: 1.4 }}>
+                      "{selected.human_notes || selected.ai_notes}"
+                    </div>
+                  )}
+                  <div style={{ color: '#4b5563', marginTop: 8, fontSize: 11 }}>
+                    {selected.timestamp ? new Date(selected.timestamp).toLocaleString() : ''}
+                    {selected.has_headshot && <span style={{ marginLeft: 8, color: '#fbbf24' }}>headshot</span>}
                   </div>
-                  <div style={{ height: 5, background: '#1f2937', borderRadius: 3 }}>
+                  {selected.weather && (
                     <div style={{
-                      height: 5, borderRadius: 3, width: `${confPct}%`,
-                      background: confPct > 70 ? '#10b981' : confPct > 40 ? '#f59e0b' : '#ef4444',
-                    }} />
-                  </div>
-                </div>
-              )}
-              {selected.ai_antlers && (
-                <div style={{ color: '#d1d5db', marginBottom: 4, fontSize: 12 }}>Rack: {selected.ai_antlers}</div>
-              )}
-              {selected.ai_notes && (
-                <div style={{ color: '#9ca3af', fontStyle: 'italic', fontSize: 12, lineHeight: 1.4 }}>"{selected.ai_notes}"</div>
-              )}
-              <div style={{ color: '#4b5563', marginTop: 8, fontSize: 11 }}>
-                {selected.timestamp ? new Date(selected.timestamp).toLocaleString() : ''}
-                {selected.has_headshot && <span style={{ marginLeft: 8, color: '#fbbf24' }}>headshot</span>}
-              </div>
-              {/* Weather conditions at time of capture */}
-              {selected.weather && (
-                <div style={{
-                  marginTop: 10, padding: '8px 10px', background: '#0f172a',
-                  borderRadius: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px',
-                  fontSize: 11, color: '#6b7280',
-                }}>
-                  {selected.weather.temperature != null && (
-                    <span>🌡 {Math.round(selected.weather.temperature)}°F</span>
+                      marginTop: 10, padding: '8px 10px', background: '#0f172a',
+                      borderRadius: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px',
+                      fontSize: 11, color: '#6b7280',
+                    }}>
+                      {selected.weather.temperature != null && <span>🌡 {Math.round(selected.weather.temperature)}°F</span>}
+                      {selected.weather.wind_speed != null && <span>💨 {Math.round(selected.weather.wind_speed)}mph {selected.weather.wind_cardinal || ''}</span>}
+                      {selected.weather.pressure_tendency && (
+                        <span>
+                          {selected.weather.pressure_tendency === 'falling' ? '📉' : selected.weather.pressure_tendency === 'rising' ? '📈' : '➡'} {selected.weather.pressure_tendency}
+                        </span>
+                      )}
+                      {selected.weather.moon_phase && <span>🌕 {selected.weather.moon_phase}</span>}
+                      {selected.weather.sun_phase && <span style={{ color: '#fbbf24' }}>{selected.weather.sun_phase}</span>}
+                      {selected.weather.label && <span style={{ gridColumn: '1 / -1', color: '#9ca3af' }}>{selected.weather.label}</span>}
+                    </div>
                   )}
-                  {selected.weather.wind_speed != null && (
-                    <span>💨 {Math.round(selected.weather.wind_speed)}mph {selected.weather.wind_cardinal || ''}</span>
-                  )}
-                  {selected.weather.pressure_tendency && (
-                    <span>
-                      {selected.weather.pressure_tendency === 'falling' ? '📉' : selected.weather.pressure_tendency === 'rising' ? '📈' : '➡'} {selected.weather.pressure_tendency}
-                    </span>
-                  )}
-                  {selected.weather.moon_phase && (
-                    <span>🌕 {selected.weather.moon_phase}</span>
-                  )}
-                  {selected.weather.sun_phase && (
-                    <span style={{ color: '#fbbf24' }}>{selected.weather.sun_phase}</span>
-                  )}
-                  {selected.weather.label && (
-                    <span style={{ gridColumn: '1 / -1', color: '#9ca3af' }}>{selected.weather.label}</span>
-                  )}
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -387,6 +558,7 @@ function CameraPanel({ camera, onClose }: PanelProps) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -433,7 +605,15 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
   const [messages, setMessages] = useState<IntelMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [chatLightbox, setChatLightbox] = useState<IntelImage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!chatLightbox) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setChatLightbox(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [chatLightbox]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -474,6 +654,50 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
 
   return (
     <>
+      {/* Chat image lightbox */}
+      {chatLightbox && (
+        <div
+          onClick={() => setChatLightbox(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 99999,
+            background: 'rgba(0,0,0,.92)',
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <button
+            onClick={() => setChatLightbox(null)}
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              background: 'rgba(255,255,255,.1)', border: 'none',
+              color: '#fff', borderRadius: 8, padding: '6px 14px',
+              cursor: 'pointer', fontSize: 18, lineHeight: 1,
+            }}
+          >&#x2715;</button>
+          <img
+            src={chatLightbox.url!}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: 'calc(100vw - 80px)',
+              maxHeight: 'calc(100vh - 120px)',
+              objectFit: 'contain',
+              borderRadius: 8,
+              boxShadow: '0 8px 40px rgba(0,0,0,.8)',
+            }}
+          />
+          <div style={{ marginTop: 12, textAlign: 'center', color: '#d1d5db', fontSize: 13 }}>
+            {chatLightbox.camera_name && <span style={{ color: '#9ca3af', marginRight: 8 }}>{chatLightbox.camera_name}</span>}
+            {chatLightbox.ai_species && <span>{chatLightbox.ai_species}</span>}
+            {chatLightbox.timestamp && (
+              <span style={{ color: '#6b7280', marginLeft: 12, fontSize: 11 }}>
+                {new Date(chatLightbox.timestamp).toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Floating trigger button */}
       <button
         onClick={() => setOpen(o => !o)}
@@ -541,9 +765,26 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
                 <div style={{
                   maxWidth: '88%', padding: '8px 12px', borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                   background: msg.role === 'user' ? '#166534' : '#1e293b',
-                  fontSize: 13, lineHeight: 1.5, color: msg.role === 'user' ? '#d1fae5' : '#e2e8f0',
+                  fontSize: 13, lineHeight: 1.6, color: msg.role === 'user' ? '#d1fae5' : '#e2e8f0',
                 }}>
-                  {msg.text}
+                  {msg.role === 'assistant' ? (
+                    <ReactMarkdown
+                      components={{
+                        h1: ({node, ...p}) => <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, marginTop: 4, color: '#f1f5f9' }} {...p} />,
+                        h2: ({node, ...p}) => <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 5, marginTop: 10, color: '#f1f5f9', borderBottom: '1px solid #334155', paddingBottom: 3 }} {...p} />,
+                        h3: ({node, ...p}) => <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4, marginTop: 8, color: '#cbd5e1' }} {...p} />,
+                        p: ({node, ...p}) => <p style={{ margin: '0 0 8px', lineHeight: 1.6 }} {...p} />,
+                        ul: ({node, ...p}) => <ul style={{ margin: '4px 0 8px', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 3 }} {...p} />,
+                        ol: ({node, ...p}) => <ol style={{ margin: '4px 0 8px', paddingLeft: 16, display: 'flex', flexDirection: 'column', gap: 3 }} {...p} />,
+                        li: ({node, ...p}) => <li style={{ lineHeight: 1.5 }} {...p} />,
+                        strong: ({node, ...p}) => <strong style={{ color: '#f1f5f9', fontWeight: 600 }} {...p} />,
+                        code: ({node, ...p}) => <code style={{ background: '#0f172a', padding: '1px 4px', borderRadius: 3, fontSize: 11, fontFamily: 'monospace' }} {...p} />,
+                        hr: ({node, ...p}) => <hr style={{ border: 'none', borderTop: '1px solid #334155', margin: '8px 0' }} {...p} />,
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  ) : msg.text}
                 </div>
                 {msg.role === 'assistant' && (msg.esql || msg.rows != null || msg.cost_usd != null) && (
                   <div style={{ fontSize: 10, color: '#374151', marginTop: 3, paddingLeft: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
@@ -572,10 +813,13 @@ function IntelChat({ cameraPanelOpen }: { cameraPanelOpen: boolean }) {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
                       {msg.images.map(img => (
-                        <div key={img.doc_id} style={{
-                          position: 'relative', borderRadius: 6, overflow: 'hidden',
-                          aspectRatio: '1', background: '#1e293b', border: '1px solid #374151',
-                        }}>
+                        <div key={img.doc_id}
+                          onClick={() => img.url && setChatLightbox(img)}
+                          style={{
+                            position: 'relative', borderRadius: 6, overflow: 'hidden',
+                            aspectRatio: '1', background: '#1e293b', border: '1px solid #374151',
+                            cursor: img.url ? 'zoom-in' : 'default',
+                          }}>
                           {img.url ? (
                             <img src={img.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
