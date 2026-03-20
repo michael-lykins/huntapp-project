@@ -32,6 +32,7 @@ services:
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
       OTEL_TRACES_SAMPLER: parentbased_always_on
+      OTEL_PROPAGATORS: tracecontext,baggage
 
       # ---- App-specific env vars ----
       ELASTIC_SEARCH_HOST: ${ELASTIC_SEARCH_HOST}
@@ -99,6 +100,7 @@ services:
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
       OTEL_TRACES_SAMPLER: parentbased_always_on
+      OTEL_PROPAGATORS: tracecontext,baggage
 
       # ---- App-specific ----
       ELASTIC_SEARCH_HOST: ${ELASTIC_SEARCH_HOST}
@@ -183,9 +185,10 @@ services:
 
   # ---- OpenTelemetry Collector (gateway to Elastic) ----
   otel:
-    image: otel/opentelemetry-collector:0.103.0
+    image: elastic/elastic-agent:9.3.2
+    entrypoint: ["/usr/share/elastic-agent/otelcol"]
     container_name: otel
-    command: ["--config=/etc/otel-collector-config.yaml"]
+    command: ["--config=file:/etc/otel-collector-config.yaml"]
     volumes:
       - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     ports:
@@ -194,7 +197,7 @@ services:
       - "8888:8888"   # Collector self-metrics
       - "13133:13133" # Health endpoint
     healthcheck:
-      test: ["CMD", "/otelcol", "--version"]
+      test: ["CMD", "curl", "-f", "http://localhost:13133"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -216,6 +219,8 @@ services:
     command: ["opentelemetry-instrument", "python", "-m", "sync.poller"]
     ports:
       - "8100:8100"
+    volumes:
+      - sync-data:/data
     env_file:
       - .env
     environment:
@@ -225,6 +230,10 @@ services:
       POLL_INTERVAL_MINUTES: ${POLL_INTERVAL_MINUTES:-15}
       SYNC_PORT: "8100"
       POLLER_URL: http://sync:8100
+
+      # ---- OnX credentials ----
+      ONX_TOKEN_FILE: /data/onx_tokens.json
+      ONX_SYNC_INTERVAL_HOURS: ${ONX_SYNC_INTERVAL_HOURS:-6}
 
       # ---- Storage ----
       ELASTIC_SEARCH_HOST: ${ELASTIC_SEARCH_HOST}
@@ -246,6 +255,7 @@ services:
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=dev,service.version=0.1.0,service.namespace=ridgeline
       OTEL_PYTHON_LOG_CORRELATION: "true"
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+      OTEL_PROPAGATORS: tracecontext,baggage
     depends_on:
       minio:
         condition: service_healthy
@@ -287,3 +297,4 @@ services:
 volumes:
   minio-data:
   web_node_modules:
+  sync-data:

@@ -1,14 +1,22 @@
 # otel/otel-collector-config.yaml
+extensions:
+  health_check: {}
+
 receivers:
-  otlp:
+  # Browser (HTTP/OTLP) — Next.js / Embrace Web SDK
+  otlp/browser:
     protocols:
-      grpc:
-        endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
         cors:
           allowed_origins:
             - "http://localhost:3030"
+
+  # Backend (gRPC/OTLP) — FastAPI, worker, sync
+  otlp/backend:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
 
 processors:
   batch: {}
@@ -16,7 +24,19 @@ processors:
     check_interval: 5s
     limit_mib: 400
     spike_limit_mib: 80
-  resource:
+
+  # Browser pipeline: override whatever Embrace SDK sends
+  resource/web:
+    attributes:
+      - key: service.name
+        action: upsert
+        value: ridgeline-web
+      - key: service.namespace
+        action: upsert
+        value: ridgeline
+
+  # Backend pipeline: propagate service.name as-is, set namespace
+  resource/backend:
     attributes:
       - key: service.name
         from_attribute: service.name
@@ -26,30 +46,47 @@ processors:
         value: ridgeline
 
 exporters:
-  otlphttp/elastic:
+  otlp_http/elastic:
     endpoint: ${ELASTIC_OTEL_OTLP_ENDPOINT}
     headers:
       Authorization: "ApiKey ${ELASTIC_OTEL_API_KEY}"
-  logging:
+  debug:
     verbosity: detailed
 
 service:
+  extensions: [health_check]
   telemetry:
     logs:
-      level: "debug"
+      level: "info"
     metrics:
-      address: ":8888"
       level: "detailed"
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: ""
+                port: 8888
   pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [memory_limiter, resource, batch]
-      exporters: [otlphttp/elastic, logging]
-    metrics:
-      receivers: [otlp]
-      processors: [memory_limiter, resource, batch]
-      exporters: [otlphttp/elastic, logging]
-    logs:
-      receivers: [otlp]
-      processors: [memory_limiter, resource, batch]
-      exporters: [otlphttp/elastic, logging]
+    # --- Browser pipelines ---
+    traces/browser:
+      receivers: [otlp/browser]
+      processors: [memory_limiter, resource/web, batch]
+      exporters: [otlp_http/elastic]
+    logs/browser:
+      receivers: [otlp/browser]
+      processors: [memory_limiter, resource/web, batch]
+      exporters: [otlp_http/elastic]
+
+    # --- Backend pipelines ---
+    traces/backend:
+      receivers: [otlp/backend]
+      processors: [memory_limiter, resource/backend, batch]
+      exporters: [otlp_http/elastic]
+    metrics/backend:
+      receivers: [otlp/backend]
+      processors: [memory_limiter, resource/backend, batch]
+      exporters: [otlp_http/elastic]
+    logs/backend:
+      receivers: [otlp/backend]
+      processors: [memory_limiter, resource/backend, batch]
+      exporters: [otlp_http/elastic]
